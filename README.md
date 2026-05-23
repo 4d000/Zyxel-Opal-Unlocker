@@ -7,7 +7,7 @@ These scripts were developed and tested against **Wind Italy (ABXA)** firmwares 
 ### Tested Models & Firmware Versions
 * **DX5401-B0** | FW `V5.17(ABXA.2)b9` (Strict hardware/software ISP binding)
 * **DX3301-T0** | FW `V5.50(ABVY.7)C0` (EasyMesh architecture. *Note: This firmware is less restricted out-of-the-box as it lacks the strict WindTre customization.*)
-* **VMG8825** | FW `V5.13(ABLZ.1)b10_20200422` & `V5.13(ABLZ.1)b8_20190225` (Legacy ZyMesh, softer UI-level locks. *Note: Mesh unlock scripts are incompatible with these specific builds.*)
+* **VMG8825** | FW `V5.13(ABLZ.1)b10_20200422` & `V5.13(ABLZ.1)b8_20190225` (Legacy ZyMesh, softer UI-level locks.)
 
 ⚠️ **Disclaimer:** These scripts modify the router's running configuration. While the UI changes are temporary (until page refresh), clicking "Apply" saves the settings to the router's NVRAM. Messing with Interface Groups or TR-069 can break your ISP's VoIP, IPTV, or remote support services. Use at your own risk.
 
@@ -22,11 +22,21 @@ These scripts manipulate the Vue instance (`__vue__`) directly from the browser'
 
 ---
 
+## 🚀 The "Pre-Login" Bypass Tactic
+I have discovered that for models like the **DX5401**, running the unlock scripts **before** authenticating (at the login screen) is the most effective method. By injecting the override flags before the login handshake completes, you prevent the router's backend from ever applying the ISP-specific "hide" logic during the session initialization.
+
+**How to execute:**
+1. Navigate to the router's login page (`/login`).
+2. Open the browser console (F12).
+3. Paste the **Master Unlock** script.
+4. Log in normally. The advanced menus should now remain visible.
+
+---
+
 ## 🚀 Core Scripts (Console Usage)
-*Use these by opening your browser's Developer Tools (F12) and pasting them into the Console.*
 
 ### 1. The Master Unlock (Kill Guards & Elevate Privilege)
-Run this from the home page. It kills the routing security, elevates your user level to "supervisor", and strips the ISP customization flags.
+Run this to kill routing security, elevate your user level to "supervisor", and strip ISP customization flags.
 
 ```javascript
 javascript:(function() {
@@ -53,32 +63,25 @@ javascript:(function() {
 ```
 
 ### 2. Direct Navigation to Hidden Pages
-Once the Master Unlock is run, some menu items still won't appear in the sidebar. You can force the router to load the page directly by running one of these in the console:
+Once unlocked, force navigation via console:
 
 ```javascript
 // Advanced Networking
 document.querySelector('#app').__vue__.$router.push('/InterfaceGrouping');
 document.querySelector('#app').__vue__.$router.push('/VlanGroup');
 
-// ISP Remote Management (TR-069)
+// ISP Remote Management
 document.querySelector('#app').__vue__.$router.push('/TR069Client');
 ```
 
-#### 💡 Why `/TR069Client` is interesting:
-TR-069 (CWMP) is the protocol your ISP uses to remotely manage, update, and monitor your router. By accessing this hidden menu, you can see the ACS URL your ISP uses, view the connection status, or disable remote management entirely if you want to stop the ISP from pushing unwanted firmware updates or resetting your custom configuration.
-
 ---
 
-## 🕵️ Discovering & Testing Hidden Paths
-Because different firmware versions hide different features, you can query the router's internal Vue Router to print out a map of every single page that exists on the device, even the hidden ones!
-
-**1. Run the Path Discovery Script:**
+## 🕵️ Discovering Hidden Paths
+You can map every available route on your specific firmware by running this in the console:
 
 ```javascript
 (function() {
     const routes = document.querySelector('#app').__vue__.$router.options.routes;
-    console.log("%c--- All Possible Router Paths ---", "color: orange; font-size: 14px; font-weight: bold;");
-    
     function printRoutes(r, indent = "") {
         r.forEach(route => {
             console.log(`${indent}${route.path}`);
@@ -89,22 +92,15 @@ Because different firmware versions hide different features, you can query the r
 })();
 ```
 
-**2. Test the Paths:**
-Look through the list printed in your console. See something interesting like `/EoGRE` or `/Avast`? Test it using the direct navigation script:
-```javascript
-document.querySelector('#app').__vue__.$router.push('/YourDiscoveredPath');
-```
-
 ---
 
-## 🛜 EasyMesh Menu & Role Unlocker (DX3301 / Modern Firmwares)
-ISPs often hardcode the router to act only as a Mesh Controller and hide the menu. This script forces the EasyMesh/MPro Mesh tab to appear, unlocks the global visibility flags, and allows you to set the router as an Agent (satellite).
+## 🛜 EasyMesh Menu & Role Unlocker
+Forces the EasyMesh/MPro Mesh tab to appear and allows role selection (Controller/Agent).
 
 ```javascript
 javascript:(function() {
     const state = document.querySelector('#app').__vue__.$store.state;
     const flags = state.guiFlag;
-
     flags.showMeshLabel = true;
     flags.showEasyMeshLabel = true;
     flags.showController = true;
@@ -125,7 +121,7 @@ javascript:(function() {
                 const meshTabIndex = view.tabContent.findIndex(t => t.name.toLowerCase().includes('mesh'));
                 if (meshTabIndex !== -1) {
                     view.tabActiveIndex = meshTabIndex;
-                    alert("Mesh tab found and activated! You can now change roles.");
+                    alert("Mesh tab found and activated!");
                 }
             }
         }, 500);
@@ -135,40 +131,22 @@ javascript:(function() {
 
 ---
 
-## ⚠️ Known Limitations & Hardware Quirks
-
-* **DX5401 Interface Grouping (FW V5.17(ABXA.2)b9):** If MPro Mesh is enabled, the firmware strictly locks the wireless interfaces (`wl0`, `wl1`) to the default bridge to maintain the backhaul. **You cannot group wireless networks into separate VLANs/Interfaces while MPro Mesh is enabled.** You must disable Mesh to isolate your WiFi networks.
-* **VMG8825 Mesh Scripts:** The older ZyMesh architecture on the VMG8825 builds listed above responds poorly to UI-level unlocks for Mesh roles. The Mesh-specific scripts in this repo are geared toward newer EasyMesh/MPro Mesh architectures.
+## ⚠️ Known Limitations
+* **DX5401 Interface Grouping:** Hard-locked WAN creation. Edit existing profiles instead of creating new ones.
+* **VMG8825:** Older ZyMesh architecture is less responsive to UI-level unlocks compared to EasyMesh.
 
 ---
 
-## 🔖 Bookmarklets (One-Click Unlocks)
-You do not need to open the F12 Developer Console every time you want to use these. You can save them directly to your browser bookmarks!
-
-*Note: Bookmark URLs cannot contain multi-line code or `//` comments, or they will throw an `Unexpected end of input` error. Use the **minified** scripts below for your bookmarks.*
-
-**How to use:**
-1. Right-click your browser's bookmark bar and click **Add Page** or **Add Bookmark**.
-2. Name it appropriately (e.g., "Zyxel Master Unlock").
-3. In the **URL** field, paste the minified code block below.
-4. Click the bookmark while logged into your router.
+## 🔖 Bookmarklets (Minified)
+Use these for one-click access. Create a new bookmark, name it, and paste the code into the URL field.
 
 **Master Unlock (Minified):**
-```javascript
-javascript:(function(){const root=document.querySelector('#app').__vue__;const flags=root.$store.state.guiFlag;root.$router.beforeHooks=[];root.$store.state.userLevel="supervisor";root.$store.state.curloginLevel=2;flags.WindItalyCustomization=false;flags.hideEthWanTab=false;flags.hideadvance=false;flags.apas=true;flags.apas_intfgrp=true;flags.ZYXEL_VLAN_GROUP=true;alert("Master Unlock complete! You can now navigate to hidden URLs.");})();
-```
+`javascript:(function(){const root=document.querySelector('#app').__vue__;const flags=root.$store.state.guiFlag;root.$router.beforeHooks=[];root.$store.state.userLevel="supervisor";root.$store.state.curloginLevel=2;flags.WindItalyCustomization=false;flags.hideEthWanTab=false;flags.hideadvance=false;flags.apas=true;flags.apas_intfgrp=true;flags.ZYXEL_VLAN_GROUP=true;alert("Master Unlock complete!");})();`
 
 **EasyMesh Unlocker (Minified):**
-```javascript
-javascript:(function(){const state=document.querySelector('#app').__vue__.$store.state;const flags=state.guiFlag;flags.showMeshLabel=true;flags.showEasyMeshLabel=true;flags.showController=true;flags.WindItalyCustomization=false;state.userLevel="supervisor";const root=document.querySelector('#app').__vue__;root.$children.forEach(child=>{if(child.$options.name==='MenuList'||child.$options.name==='Navbar'){child.$forceUpdate();}});root.$router.push('/Wireless').then(()=>{setTimeout(()=>{const view=root.$route.matched[0].instances.default;if(view&&view.tabContent){const meshTabIndex=view.tabContent.findIndex(t=>t.name.toLowerCase().includes('mesh'));if(meshTabIndex!==-1){view.tabActiveIndex=meshTabIndex;alert("Mesh tab found and activated! You can now change roles.");}}},500);});})();
-```
-
-**Page Activator (Un-grey buttons - Minified):**
-```javascript
-javascript:(function(){const view=document.querySelector('#app').__vue__.$route.matched[0].instances.default;if(view){view.ControllDisabled=false;view.IsReadonly=false;if(view.guiConfig){view.guiConfig.showAdd=true;view.guiConfig.showEdit=true;view.guiConfig.showDelete=true;view.guiConfig.isReadonly=false;}view.$forceUpdate();alert("Page editing unlocked!");}})();
-```
+`javascript:(function(){const state=document.querySelector('#app').__vue__.$store.state;const flags=state.guiFlag;flags.showMeshLabel=true;flags.showEasyMeshLabel=true;flags.showController=true;flags.WindItalyCustomization=false;state.userLevel="supervisor";const root=document.querySelector('#app').__vue__;root.$children.forEach(child=>{if(child.$options.name==='MenuList'||child.$options.name==='Navbar'){child.$forceUpdate();}});root.$router.push('/Wireless').then(()=>{setTimeout(()=>{const view=root.$route.matched[0].instances.default;if(view&&view.tabContent){const meshTabIndex=view.tabContent.findIndex(t=>t.name.toLowerCase().includes('mesh'));if(meshTabIndex!==-1){view.tabActiveIndex=meshTabIndex;alert("Mesh tab activated!");}}},500);});})();`
 
 ---
 
 ## 📄 License
-This project is licensed under the MIT License. You are free to use, modify, and distribute these scripts as long as the original copyright notice is included. See the `LICENSE` file for details.
+This project is licensed under the MIT License. See the LICENSE file for details.
