@@ -2,7 +2,7 @@
 
 This repository contains JavaScript snippets that bypass the GUI restrictions on ISP-provided Zyxel routers running the "Opal" firmware architecture (Vue.js frontend). 
 
-These scripts were developed and tested against **Wind Italy (ABXA)** firmwares but should work on other locked Zyxel models.
+These scripts were developed and tested against **Wind Italy** firmwares but should work on other locked Zyxel models.
 
 ### Tested Models & Firmware Versions
 * **DX5401-B0** | FW `V5.17(ABXA.2)b9` (Strict hardware/software ISP binding)
